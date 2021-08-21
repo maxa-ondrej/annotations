@@ -5,6 +5,7 @@ import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
+import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
 import javax.tools.Diagnostic;
 import javax.tools.FileObject;
@@ -22,20 +23,25 @@ public class ConfigProcessor extends AbstractProcessor {
 
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-        annotations.stream()
-                .map(roundEnv::getElementsAnnotatedWith)
-                .forEach(elements -> elements.forEach(element -> {
-                    try (final BufferedWriter writer = createWriter()) {
-                        writer.write(element.getClass().getName());
-                    } catch (IOException e) {
-                        processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, e.getMessage());
-                    }
-                }));
+        annotations.forEach(annotation -> {
+            final Set<? extends Element> elements = roundEnv.getElementsAnnotatedWith(annotation);
+            elements.forEach(element -> {
+                try (final BufferedWriter writer = createWriter()) {
+                    writer.write("");
+                    writer.append("class: ")
+                            .append(element.getClass().getName())
+                            .append("\nvalue: ")
+                            .append(element.getAnnotation(Config.class).value());
+                } catch (IOException e) {
+                    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, e.getMessage());
+                }
+            });
+        });
         return true;
     }
 
     private BufferedWriter createWriter() throws IOException {
-        final String filename = ANNOTATION + ++fileNameCounter;
+        final String filename = ANNOTATION + ++fileNameCounter + ".txt";
         FileObject obj = processingEnv.getFiler().createResource(StandardLocation.CLASS_OUTPUT, "", filename);
         processingEnv.getMessager().printMessage(Diagnostic.Kind.NOTE, "Writing " + filename + " to " + obj.toUri());
         return new BufferedWriter(obj.openWriter());
